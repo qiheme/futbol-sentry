@@ -1,7 +1,33 @@
 ---
+import Card from '@q-labs/cobalt/Card';
+import Display from '@q-labs/cobalt/Display';
+import Heading from '@q-labs/cobalt/Heading';
+import TodayFixtures from '../components/react/TodayFixtures';
 import Base from '../layouts/Base.astro';
+import { activeCompetitions } from '../lib/queries';
+
+const seasons = await activeCompetitions();
 ---
 
 <Base title="PitchGlobe — Live world football" current="home">
-  <h1>PitchGlobe</h1>
+  <Display variant="lg" as="h1">Today’s football</Display>
+
+  <TodayFixtures client:load />
+
+  <section data-testid="featured-competitions">
+    <Heading level={2}>Featured competitions</Heading>
+    <div class="card-grid">
+      {
+        seasons.map((s) =>
+          s.competition ? (
+            <a href={`/competitions/${s.competition.slug}`}>
+              <Card title={s.competition.name} meta={s.year_label}>
+                {s.competition.country}
+              </Card>
+            </a>
+          ) : null,
+        )
+      }
+    </div>
+  </section>
 </Base>

@@ -58,3 +58,193 @@ a:hover {
 .site-footer a {
   color: var(--text-accent);
 }
+
+.muted {
+  color: var(--text-secondary);
+}
+
+.page-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+
+/* --- Match cards (Cobalt has no fixture-row component) --- */
+
+.match-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-6);
+}
+
+.match-card {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-raised);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.match-card:hover {
+  border-color: var(--accent-default);
+  color: inherit;
+}
+
+.match-card-team {
+  font-size: var(--text-sm);
+}
+
+.match-card-team.home {
+  text-align: right;
+}
+
+.match-card-score {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.match-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-self: end;
+}
+
+/* --- Standings table (Cobalt has no Table component) --- */
+
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.standings-table th,
+.standings-table td {
+  text-align: center;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--bg-raised);
+}
+
+.standings-table .team-col {
+  text-align: left;
+}
+
+.standings-table thead th {
+  color: var(--text-secondary);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+}
+
+.standings-table td.pos {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.standings-table td.pts {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.standings-table tbody tr:hover {
+  background: var(--bg-surface);
+}
+
+.form-badges {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.form-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+}
+
+.form-badge.form-w {
+  background: var(--accent-subtle);
+  color: var(--text-accent);
+}
+
+.form-badge.form-l {
+  background: var(--bg-sunken);
+  color: var(--text-danger);
+}
+
+/* --- Tab strip (Cobalt has no Tabs component) --- */
+
+.tab-strip [role='tablist'] {
+  display: flex;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--bg-raised);
+  margin-bottom: var(--space-4);
+}
+
+.tab-strip [role='tab'] {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.tab-strip [role='tab'][aria-selected='true'] {
+  border-bottom-color: var(--accent-default);
+  color: var(--text-primary);
+}
+
+.tab-strip [role='tab']:focus-visible {
+  outline: 2px solid var(--accent-default);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* --- Cards used as link grids --- */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+/* --- Match page --- */
+
+.match-scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  padding: var(--space-6) 0;
+  flex-wrap: wrap;
+}
+
+.match-scoreboard .team {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.match-scoreboard .score {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+}
+
+.timeline {
+  margin: var(--space-4) 0 var(--space-6);
+}

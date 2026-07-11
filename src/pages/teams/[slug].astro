@@ -1,0 +1,94 @@
+---
+import Display from '@q-labs/cobalt/Display';
+import Heading from '@q-labs/cobalt/Heading';
+import StatItem from '@q-labs/cobalt/StatItem';
+import StatsRow from '@q-labs/cobalt/StatsRow';
+import Tag from '@q-labs/cobalt/Tag';
+import MatchCard from '../../components/react/MatchCard';
+import Base from '../../layouts/Base.astro';
+import { parseForm } from '../../lib/helpers';
+import { allTeams, teamDetail } from '../../lib/queries';
+
+export async function getStaticPaths() {
+  const teams = await allTeams();
+  return teams.map((t) => ({ params: { slug: t.slug } }));
+}
+
+const { slug } = Astro.params;
+const detail = await teamDetail(slug!);
+if (!detail) throw new Error(`Unknown team: ${slug}`);
+
+const { team, matches, standing } = detail;
+const results = matches.filter((m) => m.status === 'finished').reverse();
+const fixtures = matches.filter((m) => m.status !== 'finished');
+const form = parseForm(standing?.form ?? null);
+---
+
+<Base
+  title={`${team.name} — fixtures & results — PitchGlobe`}
+  description={`Fixtures, results and form for ${team.name}.`}
+>
+  <div class="page-header">
+    <Display variant="md" as="h1">{team.name}</Display>
+    {team.country && <Tag>{team.country}</Tag>}
+  </div>
+
+  {
+    standing && (
+      <section data-testid="team-standing">
+        <StatsRow>
+          <StatItem value={`#${standing.position}`} label="Position" />
+          <StatItem value={String(standing.points)} label="Points" />
+          <StatItem value={String(standing.played)} label="Played" />
+          <StatItem
+            value={standing.gd > 0 ? `+${standing.gd}` : String(standing.gd)}
+            label="Goal difference"
+          />
+        </StatsRow>
+      </section>
+    )
+  }
+
+  {
+    form.length > 0 && (
+      <section>
+        <Heading level={2}>Form</Heading>
+        <span class="form-badges" data-testid="team-form">
+          {form.map((f) => (
+            <span class={`form-badge form-${f.toLowerCase()}`}>{f}</span>
+          ))}
+        </span>
+      </section>
+    )
+  }
+
+  <section data-testid="team-fixtures">
+    <Heading level={2}>Fixtures</Heading>
+    {
+      fixtures.length > 0 ? (
+        <div class="match-card-list">
+          {fixtures.map((m) => (
+            <MatchCard match={m} />
+          ))}
+        </div>
+      ) : (
+        <p class="muted">No upcoming fixtures.</p>
+      )
+    }
+  </section>
+
+  <section data-testid="team-results">
+    <Heading level={2}>Results</Heading>
+    {
+      results.length > 0 ? (
+        <div class="match-card-list">
+          {results.map((m) => (
+            <MatchCard match={m} />
+          ))}
+        </div>
+      ) : (
+        <p class="muted">No results yet.</p>
+      )
+    }
+  </section>
+</Base>

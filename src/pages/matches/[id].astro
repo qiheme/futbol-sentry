@@ -1,0 +1,96 @@
+---
+import Badge from '@q-labs/cobalt/Badge';
+import Heading from '@q-labs/cobalt/Heading';
+import Tag from '@q-labs/cobalt/Tag';
+import TimelineItem from '@q-labs/cobalt/TimelineItem';
+import StandingsTable from '../../components/react/StandingsTable';
+import SportsEventJsonLd from '../../components/seo/SportsEventJsonLd.astro';
+import Base from '../../layouts/Base.astro';
+import { matchStatusLabel } from '../../lib/helpers';
+import { allMatchIds, matchDetail } from '../../lib/queries';
+
+export async function getStaticPaths() {
+  const ids = await allMatchIds();
+  return ids.map((m) => ({ params: { id: m.id } }));
+}
+
+const { id } = Astro.params;
+const detail = await matchDetail(id!);
+if (!detail) throw new Error(`Unknown match: ${id}`);
+
+const { match, events, standingsContext } = detail;
+const label = matchStatusLabel(match);
+const played = match.status === 'finished' || match.status === 'live';
+const title = `${match.home_team.name} vs ${match.away_team.name}`;
+---
+
+<Base
+  title={`${title} — ${match.competition.name} — PitchGlobe`}
+  description={`Score, events and context for ${title} in ${match.competition.name}.`}
+>
+  <Fragment slot="head">
+    <SportsEventJsonLd match={match} />
+  </Fragment>
+
+  <div class="page-header">
+    <a href={`/competitions/${match.competition.slug}`}>
+      <Tag>{match.competition.name}</Tag>
+    </a>
+    {match.season && <Tag>{match.season.year_label}</Tag>}
+    {
+      label.kind === 'live' ? (
+        <Badge variant="active">LIVE {label.text}</Badge>
+      ) : (
+        <Badge variant={label.kind === 'postponed' ? 'warning' : 'default'}>
+          {label.text}
+        </Badge>
+      )
+    }
+  </div>
+
+  <section class="match-scoreboard" data-testid="match-score">
+    <a class="team" href={`/teams/${match.home_team.slug}`}>{match.home_team.name}</a>
+    <span class="score">
+      {played ? `${match.home_score ?? 0} – ${match.away_score ?? 0}` : 'vs'}
+    </span>
+    <a class="team" href={`/teams/${match.away_team.slug}`}>{match.away_team.name}</a>
+  </section>
+
+  {
+    match.venue && (
+      <p class="muted" style="text-align:center">
+        {match.venue.name}
+        {match.venue.city ? `, ${match.venue.city}` : ''}
+      </p>
+    )
+  }
+
+  {
+    events.length > 0 && (
+      <section data-testid="match-timeline" class="timeline">
+        <Heading level={2}>Timeline</Heading>
+        {events.map((e, i) => (
+          <TimelineItem
+            title={`${e.detail ?? e.type}${e.team ? ` (${e.team.short_name ?? e.team.name})` : ''}`}
+            date={e.minute != null ? `${e.minute}'` : ''}
+            active={e.type === 'goal' || e.type === 'own_goal' || e.type === 'penalty'}
+            isLast={i === events.length - 1}
+          />
+        ))}
+      </section>
+    )
+  }
+
+  {
+    standingsContext.length > 0 && (
+      <section>
+        <Heading level={2}>Standings context</Heading>
+        <StandingsTable
+          rows={standingsContext}
+          label={`${match.competition.name} standings`}
+          compact
+        />
+      </section>
+    )
+  }
+</Base>

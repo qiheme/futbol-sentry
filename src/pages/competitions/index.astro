@@ -1,0 +1,23 @@
+---
+import Card from '@q-labs/cobalt/Card';
+import Display from '@q-labs/cobalt/Display';
+import Base from '../../layouts/Base.astro';
+import { allCompetitions } from '../../lib/queries';
+
+const competitions = await allCompetitions();
+---
+
+<Base title="Competitions — PitchGlobe" current="competitions">
+  <Display variant="lg" as="h1">Competitions</Display>
+  <div class="card-grid">
+    {
+      competitions.map((c) => (
+        <a href={`/competitions/${c.slug}`}>
+          <Card title={c.name} meta={c.country ?? c.confederation ?? ''}>
+            {c.type}
+          </Card>
+        </a>
+      ))
+    }
+  </div>
+</Base>

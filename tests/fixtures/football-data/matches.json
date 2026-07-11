@@ -1,0 +1,56 @@
+{
+  "filters": { "season": "2025" },
+  "resultSet": { "count": 3, "first": "2026-01-10", "last": "2026-01-18" },
+  "competition": { "id": 2021, "name": "Premier League", "code": "PL", "type": "LEAGUE" },
+  "matches": [
+    {
+      "id": 497001,
+      "utcDate": "2026-01-10T15:00:00Z",
+      "status": "FINISHED",
+      "matchday": 21,
+      "stage": "REGULAR_SEASON",
+      "group": null,
+      "homeTeam": { "id": 57, "name": "Arsenal FC", "shortName": "Arsenal", "tla": "ARS", "crest": "https://crests.football-data.org/57.png" },
+      "awayTeam": { "id": 61, "name": "Chelsea FC", "shortName": "Chelsea", "tla": "CHE", "crest": "https://crests.football-data.org/61.png" },
+      "score": {
+        "winner": "HOME_TEAM",
+        "duration": "REGULAR",
+        "fullTime": { "home": 2, "away": 1 },
+        "halfTime": { "home": 1, "away": 0 }
+      }
+    },
+    {
+      "id": 497002,
+      "utcDate": "2026-01-17T17:30:00Z",
+      "status": "IN_PLAY",
+      "minute": 55,
+      "matchday": 22,
+      "stage": "REGULAR_SEASON",
+      "group": null,
+      "homeTeam": { "id": 65, "name": "Manchester City FC", "shortName": "Man City", "tla": "MCI", "crest": "https://crests.football-data.org/65.png" },
+      "awayTeam": { "id": 57, "name": "Arsenal FC", "shortName": "Arsenal", "tla": "ARS", "crest": "https://crests.football-data.org/57.png" },
+      "score": {
+        "winner": null,
+        "duration": "REGULAR",
+        "fullTime": { "home": 1, "away": 1 },
+        "halfTime": { "home": 0, "away": 1 }
+      }
+    },
+    {
+      "id": 497003,
+      "utcDate": "2026-01-18T14:00:00Z",
+      "status": "TIMED",
+      "matchday": 22,
+      "stage": "REGULAR_SEASON",
+      "group": null,
+      "homeTeam": { "id": 64, "name": "Liverpool FC", "shortName": "Liverpool", "tla": "LIV", "crest": "https://crests.football-data.org/64.png" },
+      "awayTeam": { "id": 351, "name": "Nottingham Forest FC", "shortName": "Nottingham", "tla": "NOT", "crest": "https://crests.football-data.org/351.png" },
+      "score": {
+        "winner": null,
+        "duration": "REGULAR",
+        "fullTime": { "home": null, "away": null },
+        "halfTime": { "home": null, "away": null }
+      }
+    }
+  ]
+}
