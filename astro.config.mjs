@@ -9,9 +9,10 @@ export default defineConfig({
   integrations: [react(), sitemap()],
   vite: {
     ssr: {
-      // Cobalt ships CSS Modules imports; Node can't load .css files, so the
-      // package must be bundled by Vite during SSR/prerender.
-      noExternal: ['@q-labs/cobalt'],
+      // Dev SSR: bundle Cobalt through Vite so its CSS-module imports resolve.
+      // (The static build's prerender pass keeps deps external regardless — see
+      // scripts/css-stub-loader.mjs, wired into the `build` script.)
+      noExternal: [/@q-labs\/cobalt/],
     },
   },
 });
