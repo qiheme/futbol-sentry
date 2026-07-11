@@ -1,0 +1,19 @@
+# build output
+dist/
+.astro/
+
+# dependencies
+node_modules/
+
+# environment — real values live in env vars / Supabase secrets, never in git
+.env
+.env.*
+!.env.example
+
+# test artifacts
+playwright-report/
+test-results/
+coverage/
+
+# logs
+npm-debug.log*
