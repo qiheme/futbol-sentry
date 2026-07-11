@@ -1,0 +1,60 @@
+/* Site-level styles built exclusively from Cobalt design tokens.
+   Component styling comes from Cobalt itself; this file only covers the
+   page chrome and surfaces Cobalt has no component for. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--text-accent);
+}
+
+.site-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.site-footer {
+  border-top: 1px solid var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  padding: var(--space-5) var(--space-4);
+  text-align: center;
+}
+
+.site-footer a {
+  color: var(--text-accent);
+}
