@@ -1,0 +1,81 @@
+---
+import Display from '@q-labs/cobalt/Display';
+import Tag from '@q-labs/cobalt/Tag';
+import MatchCard from '../../components/react/MatchCard';
+import StandingsTable from '../../components/react/StandingsTable';
+import TabStrip from '../../components/react/TabStrip';
+import Base from '../../layouts/Base.astro';
+import { allCompetitions, competitionDetail } from '../../lib/queries';
+
+export async function getStaticPaths() {
+  const competitions = await allCompetitions();
+  return competitions.map((c) => ({ params: { slug: c.slug } }));
+}
+
+const { slug } = Astro.params;
+const detail = await competitionDetail(slug!);
+if (!detail) throw new Error(`Unknown competition: ${slug}`);
+
+const { competition, season, standings, matches } = detail;
+const fixtures = matches.filter((m) => m.status !== 'finished');
+const results = matches.filter((m) => m.status === 'finished').reverse();
+
+const TABS = [
+  { id: 'standings', label: 'Standings' },
+  { id: 'fixtures', label: 'Fixtures' },
+  { id: 'results', label: 'Results' },
+];
+---
+
+<Base
+  title={`${competition.name} — standings & fixtures — PitchGlobe`}
+  description={`Standings, fixtures and results for ${competition.name}.`}
+  current="competitions"
+>
+  <div class="page-header">
+    <Display variant="md" as="h1">{competition.name}</Display>
+    {competition.country && <Tag>{competition.country}</Tag>}
+    {season && <Tag>{season.year_label}</Tag>}
+  </div>
+
+  <TabStrip client:load tabs={TABS} label={`${competition.name} sections`}>
+    <div slot="standings">
+      {
+        standings.length > 0 ? (
+          <StandingsTable
+            rows={standings}
+            label={`${competition.name} standings`}
+          />
+        ) : (
+          <p class="muted">No standings available yet.</p>
+        )
+      }
+    </div>
+    <div slot="fixtures">
+      {
+        fixtures.length > 0 ? (
+          <div class="match-card-list">
+            {fixtures.map((m) => (
+              <MatchCard match={m} />
+            ))}
+          </div>
+        ) : (
+          <p class="muted">No upcoming fixtures.</p>
+        )
+      }
+    </div>
+    <div slot="results">
+      {
+        results.length > 0 ? (
+          <div class="match-card-list">
+            {results.map((m) => (
+              <MatchCard match={m} />
+            ))}
+          </div>
+        ) : (
+          <p class="muted">No results yet.</p>
+        )
+      }
+    </div>
+  </TabStrip>
+</Base>

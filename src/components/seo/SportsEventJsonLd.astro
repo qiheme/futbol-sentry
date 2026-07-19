@@ -1,0 +1,46 @@
+---
+interface Props {
+  match: {
+    id: string;
+    kickoff_utc: string;
+    status: string;
+    home_team: { name: string };
+    away_team: { name: string };
+    competition: { name: string };
+    venue?: { name: string; city: string | null } | null;
+  };
+}
+
+const { match } = Astro.props;
+
+const statusMap: Record<string, string> = {
+  scheduled: 'https://schema.org/EventScheduled',
+  live: 'https://schema.org/EventScheduled',
+  finished: 'https://schema.org/EventScheduled',
+  postponed: 'https://schema.org/EventPostponed',
+};
+
+const data = {
+  '@context': 'https://schema.org',
+  '@type': 'SportsEvent',
+  name: `${match.home_team.name} vs ${match.away_team.name}`,
+  sport: 'Soccer',
+  startDate: match.kickoff_utc,
+  eventStatus: statusMap[match.status] ?? statusMap.scheduled,
+  homeTeam: { '@type': 'SportsTeam', name: match.home_team.name },
+  awayTeam: { '@type': 'SportsTeam', name: match.away_team.name },
+  superEvent: { '@type': 'SportsEvent', name: match.competition.name },
+  ...(match.venue
+    ? {
+        location: {
+          '@type': 'Place',
+          name: match.venue.name,
+          ...(match.venue.city ? { address: match.venue.city } : {}),
+        },
+      }
+    : {}),
+  url: new URL(`/matches/${match.id}`, Astro.site).toString(),
+};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(data)} is:inline />

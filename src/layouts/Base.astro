@@ -1,0 +1,45 @@
+---
+import '@q-labs/cobalt/styles.css';
+import '../styles/global.css';
+import SiteNav, { type NavSection } from '../components/react/SiteNav';
+
+interface Props {
+  title: string;
+  description?: string;
+  current?: NavSection;
+}
+
+const {
+  title,
+  description = 'Live scores, fixtures, and standings across world football.',
+  current,
+} = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content="PitchGlobe" />
+    <slot name="head" />
+  </head>
+  <body>
+    <SiteNav current={current} />
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <p>
+        Football data provided by the <a href="https://www.football-data.org" rel="noopener">Football-Data.org API</a>
+      </p>
+    </footer>
+  </body>
+</html>

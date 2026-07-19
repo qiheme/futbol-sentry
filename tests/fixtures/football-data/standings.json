@@ -1,0 +1,59 @@
+{
+  "filters": { "season": "2025" },
+  "competition": { "id": 2021, "name": "Premier League", "code": "PL", "type": "LEAGUE" },
+  "season": { "id": 2403, "startDate": "2025-08-08", "endDate": "2026-05-24", "currentMatchday": 22 },
+  "standings": [
+    {
+      "stage": "REGULAR_SEASON",
+      "type": "TOTAL",
+      "group": null,
+      "table": [
+        {
+          "position": 1,
+          "team": { "id": 57, "name": "Arsenal FC", "shortName": "Arsenal", "tla": "ARS", "crest": "https://crests.football-data.org/57.png" },
+          "playedGames": 21,
+          "form": "W,W,D,W,W",
+          "won": 15,
+          "draw": 4,
+          "lost": 2,
+          "points": 49,
+          "goalsFor": 48,
+          "goalsAgainst": 18,
+          "goalDifference": 30
+        },
+        {
+          "position": 2,
+          "team": { "id": 64, "name": "Liverpool FC", "shortName": "Liverpool", "tla": "LIV", "crest": "https://crests.football-data.org/64.png" },
+          "playedGames": 21,
+          "form": "W,D,W,W,D",
+          "won": 14,
+          "draw": 5,
+          "lost": 2,
+          "points": 47,
+          "goalsFor": 50,
+          "goalsAgainst": 22,
+          "goalDifference": 28
+        },
+        {
+          "position": 3,
+          "team": { "id": 351, "name": "Nottingham Forest FC", "shortName": "Nottingham", "tla": "NOT", "crest": "https://crests.football-data.org/351.png" },
+          "playedGames": 21,
+          "form": null,
+          "won": 13,
+          "draw": 5,
+          "lost": 3,
+          "points": 44,
+          "goalsFor": 40,
+          "goalsAgainst": 25,
+          "goalDifference": 15
+        }
+      ]
+    },
+    {
+      "stage": "REGULAR_SEASON",
+      "type": "HOME",
+      "group": null,
+      "table": []
+    }
+  ]
+}
