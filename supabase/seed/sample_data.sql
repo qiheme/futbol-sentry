@@ -1,10 +1,14 @@
 -- Sample data so pages render (and e2e tests run) before FOOTBALL_DATA_API_KEY
--- is configured. Idempotent: safe to re-run.
+-- is configured. Re-running REFRESHES the synthetic matches: seed-mapped
+-- matches are deleted (cascading their events + mappings) and re-inserted
+-- with kickoffs relative to now(), so "today" surfaces always have content
+-- after a re-run.
 --
 -- Teams carry their REAL football-data.org ids in team_sources, so when real
 -- ingestion starts it resolves to these same canonical teams. Matches are
 -- mapped with source='seed' — they never collide with real upstream match ids.
--- Kickoffs are relative to now() so "today" surfaces always have content.
+-- Before (or after) enabling real ingestion, remove the synthetic matches with
+-- supabase/seed/cleanup_seed.sql so they don't sit alongside real fixtures.
 
 -- 1) Current seasons for the top-5 leagues.
 insert into public.seasons (competition_id, year_label, start_date, end_date, is_current)
@@ -64,6 +68,14 @@ on conflict (source, source_id) do nothing;
 
 -- 3) Matches: per league — 2 finished (yesterday / -3d), 1 live now,
 --    1 later today, 2 upcoming. Mapped with source='seed'.
+--    Refresh semantics: drop existing seed matches first (cascades delete
+--    their match_events and match_sources rows), then re-insert relative to
+--    now(). This is what makes re-running the seed actually move "today".
+delete from public.matches
+where id in (
+  select canonical_id from public.match_sources where source = 'seed'
+);
+
 with pairs(comp_slug, home_slug, away_slug, kickoff, status, minute, hs, "as", matchday, seed_key) as (
   values
     -- Premier League
