@@ -4,6 +4,7 @@
 import type {
   MatchStatus,
   NormalizedMatch,
+  NormalizedSeason,
   NormalizedStandingRow,
   SourceAdapter,
 } from './types.ts';
@@ -64,6 +65,38 @@ interface RawTeam {
   crest?: string | null;
 }
 
+interface RawSeason {
+  id: number;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+// Season info appears top-level in /standings payloads and per-match in
+// /matches payloads. Used by the pipeline to bootstrap `seasons` rows so
+// ingestion works without any manual season seeding.
+export function normalizeSeason(raw: unknown): NormalizedSeason | null {
+  const payload = raw as {
+    season?: RawSeason;
+    matches?: { season?: RawSeason }[];
+  };
+  const season = payload?.season ?? payload?.matches?.[0]?.season;
+  if (!season || typeof season.id !== 'number') return null;
+
+  const startYear = season.startDate?.slice(0, 4);
+  const endYear = season.endDate?.slice(0, 4);
+  const yearLabel =
+    startYear && endYear && startYear !== endYear
+      ? `${startYear}-${endYear.slice(2)}`
+      : (startYear ?? endYear ?? String(season.id));
+
+  return {
+    sourceId: String(season.id),
+    startDate: season.startDate ?? null,
+    endDate: season.endDate ?? null,
+    yearLabel,
+  };
+}
+
 export function normalizeMatches(raw: unknown): NormalizedMatch[] {
   const payload = raw as { matches?: unknown[] };
   const matches = Array.isArray(payload?.matches) ? payload.matches : [];
@@ -105,8 +138,10 @@ export function normalizeStandings(raw: unknown): NormalizedStandingRow[] {
   const payload = raw as {
     standings?: { type?: string; table?: unknown[] }[];
   };
-  const total = (payload?.standings ?? []).find((s) => s.type === 'TOTAL');
-  const table = Array.isArray(total?.table) ? total.table : [];
+  // Group-stage competitions return one TOTAL entry per group — keep them all.
+  const table = (payload?.standings ?? [])
+    .filter((s) => s.type === 'TOTAL')
+    .flatMap((s) => (Array.isArray(s.table) ? s.table : []));
   return table.map((entry) => {
     const r = entry as {
       position: number;

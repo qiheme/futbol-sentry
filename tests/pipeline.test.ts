@@ -27,7 +27,9 @@ function fakeStore(overrides: Partial<Store> = {}): Store {
     ['65', 'team-city'],
   ]);
   return {
-    currentCompetitions: vi.fn(async () => [COMP]),
+    source: 'football-data',
+    mappedCompetitions: vi.fn(async () => [COMP]),
+    ensureSeason: vi.fn(async () => 'season-uuid'),
     teamMap: vi.fn(async () => new Map(teamMap)),
     matchMap: vi.fn(async () => new Map()),
     existingMatches: vi.fn(async () => new Map<string, MatchSnapshot>()),
@@ -55,6 +57,43 @@ describe('ingestFixtures', () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it('bootstraps the season from the payload for competitions with no current season', async () => {
+    const store = fakeStore({
+      mappedCompetitions: vi.fn(async () => [{ ...COMP, seasonId: null }]),
+      ensureSeason: vi.fn(async () => 'bootstrapped-season'),
+    });
+    const result = await ingestFixtures({
+      apiKey: 'key',
+      fetchJson: fetchJson(matchesFixture),
+      store,
+      sleep: async () => {},
+    });
+    expect(result.status).toBe('success');
+    expect(store.ensureSeason).toHaveBeenCalledWith('comp-uuid', {
+      sourceId: '2403',
+      startDate: '2025-08-08',
+      endDate: '2026-05-24',
+      yearLabel: '2025-26',
+    });
+    expect(store.upsertMatch).toHaveBeenCalledWith(
+      expect.objectContaining({ seasonId: 'bootstrapped-season' }),
+    );
+  });
+
+  it('skips a competition whose payload has no season info and it has no current season', async () => {
+    const store = fakeStore({
+      mappedCompetitions: vi.fn(async () => [{ ...COMP, seasonId: null }]),
+    });
+    const result = await ingestFixtures({
+      apiKey: 'key',
+      fetchJson: fetchJson({ matches: [] }),
+      store,
+      sleep: async () => {},
+    });
+    expect(result.status).toBe('success');
+    expect(store.upsertMatch).not.toHaveBeenCalled();
+  });
+
   it('creates unknown teams once and upserts matches with resolved ids', async () => {
     const store = fakeStore();
     const result = await ingestFixtures({
@@ -69,7 +108,6 @@ describe('ingestFixtures', () => {
     expect(store.createTeam).toHaveBeenCalledTimes(1);
     expect(store.createTeam).toHaveBeenCalledWith(
       expect.objectContaining({ slug: 'nottingham-forest', name: 'Nottingham Forest FC' }),
-      'football-data',
       '351',
     );
     expect(store.upsertMatch).toHaveBeenCalledTimes(3);
@@ -93,6 +131,8 @@ describe('ingestFixtures', () => {
       homeScore: 2,
       awayScore: 1,
       kickoffUtc: '2026-01-10T15:00:00.000Z',
+      matchday: 21,
+      stage: 'REGULAR_SEASON',
     };
     const store = fakeStore({
       matchMap: vi.fn(async () => new Map([['497001', 'match-1']])),
@@ -133,6 +173,26 @@ describe('ingestStandings', () => {
     expect(result.rowsUpserted).toBe(3);
   });
 
+  it('bootstraps the season from the standings payload when none exists', async () => {
+    const store = fakeStore({
+      mappedCompetitions: vi.fn(async () => [{ ...COMP, seasonId: null }]),
+      ensureSeason: vi.fn(async () => 'bootstrapped-season'),
+    });
+    const result = await ingestStandings({
+      apiKey: 'key',
+      fetchJson: fetchJson(standingsFixture),
+      store,
+      sleep: async () => {},
+    });
+    expect(result.status).toBe('success');
+    expect(store.ensureSeason).toHaveBeenCalledWith(
+      'comp-uuid',
+      expect.objectContaining({ sourceId: '2403', yearLabel: '2025-26' }),
+    );
+    const rows = vi.mocked(store.upsertStandings).mock.calls[0]?.[0];
+    expect(rows?.[0]).toMatchObject({ seasonId: 'bootstrapped-season' });
+  });
+
   it('skips gracefully when the API key is missing', async () => {
     const result = await ingestStandings({
       apiKey: '',
@@ -151,12 +211,20 @@ describe('matchChanged', () => {
     homeScore: 1,
     awayScore: 1,
     kickoffUtc: '2026-01-17T17:30:00.000Z',
+    matchday: 22,
+    stage: 'REGULAR_SEASON',
   };
 
   it('detects score/minute/status changes', () => {
     expect(matchChanged(snapshot, { ...snapshot, minute: 56 })).toBe(true);
     expect(matchChanged(snapshot, { ...snapshot, homeScore: 2 })).toBe(true);
     expect(matchChanged(snapshot, { ...snapshot, status: 'finished' })).toBe(true);
+  });
+
+  it('detects matchday and stage corrections', () => {
+    expect(matchChanged(snapshot, { ...snapshot, matchday: 23 })).toBe(true);
+    expect(matchChanged(snapshot, { ...snapshot, stage: 'PLAYOFFS' })).toBe(true);
+    expect(matchChanged(snapshot, { ...snapshot })).toBe(false);
   });
 
   it('treats equal timestamps with different ISO formats as unchanged', () => {
