@@ -55,57 +55,40 @@ export function createStore(db: SupabaseClient, source: string): Store {
     },
 
     // Upsert the season named by the upstream payload and make it the only
-    // current season for the competition.
+    // current season for the competition. Atomic ON CONFLICT upsert: the
+    // fixtures and standings crons both fire at minute 0, so two runs can
+    // bootstrap the same season concurrently — select-then-insert would race
+    // on the (competition_id, year_label) unique constraint.
     async ensureSeason(
       competitionId: string,
       season: NormalizedSeason,
     ): Promise<string> {
-      const { data: existing, error: selError } = await db
+      const { data, error } = await db
         .from('seasons')
-        .select('id, is_current, start_date, end_date')
-        .eq('competition_id', competitionId)
-        .eq('year_label', season.yearLabel)
-        .maybeSingle();
-      if (selError) throw selError;
-
-      let seasonId = existing?.id as string | undefined;
-      if (seasonId) {
-        if (!existing!.is_current) {
-          const { error } = await db
-            .from('seasons')
-            .update({
-              is_current: true,
-              start_date: season.startDate,
-              end_date: season.endDate,
-            })
-            .eq('id', seasonId);
-          if (error) throw error;
-        }
-      } else {
-        const { data, error } = await db
-          .from('seasons')
-          .insert({
+        .upsert(
+          {
             competition_id: competitionId,
             year_label: season.yearLabel,
             start_date: season.startDate,
             end_date: season.endDate,
             is_current: true,
-          })
-          .select('id')
-          .single();
-        if (error) throw error;
-        seasonId = data.id;
-      }
+          },
+          { onConflict: 'competition_id,year_label' },
+        )
+        .select('id')
+        .single();
+      if (error) throw error;
+      const seasonId = data.id as string;
 
       // Exactly one current season per competition (queries use maybeSingle).
       const { error: clearError } = await db
         .from('seasons')
         .update({ is_current: false })
         .eq('competition_id', competitionId)
-        .neq('id', seasonId!)
+        .neq('id', seasonId)
         .eq('is_current', true);
       if (clearError) throw clearError;
-      return seasonId!;
+      return seasonId;
     },
 
     async teamMap(): Promise<Map<string, string>> {

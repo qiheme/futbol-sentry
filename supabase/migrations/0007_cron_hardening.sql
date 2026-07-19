@@ -19,6 +19,9 @@ as $$
 $$;
 
 revoke execute on function public.get_ingest_token() from public, anon, authenticated;
+-- Supabase default privileges already grant service_role EXECUTE on new public
+-- functions, but make it explicit so the migration doesn't depend on them.
+grant execute on function public.get_ingest_token() to service_role;
 
 create or replace function public.invoke_ingest(fn text)
 returns void
