@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   matchesUrl,
   normalizeMatches,
+  normalizeSeason,
   normalizeStandings,
   slugifyTeam,
   standingsUrl,
@@ -74,6 +75,85 @@ describe('football-data adapter — normalizeStandings', () => {
 
   it('handles a null form field', () => {
     expect(rows[2]?.form).toBeNull();
+  });
+
+  it('concatenates every TOTAL table (group-stage competitions have one per group)', () => {
+    const groupStage = {
+      standings: [
+        {
+          stage: 'GROUP_STAGE',
+          type: 'TOTAL',
+          group: 'GROUP_A',
+          table: [
+            {
+              position: 1,
+              team: { id: 759, name: 'Germany', shortName: 'Germany', crest: null },
+              playedGames: 3, form: null, won: 2, draw: 1, lost: 0,
+              points: 7, goalsFor: 6, goalsAgainst: 2, goalDifference: 4,
+            },
+          ],
+        },
+        {
+          stage: 'GROUP_STAGE',
+          type: 'HOME',
+          group: 'GROUP_A',
+          table: [],
+        },
+        {
+          stage: 'GROUP_STAGE',
+          type: 'TOTAL',
+          group: 'GROUP_B',
+          table: [
+            {
+              position: 1,
+              team: { id: 760, name: 'Spain', shortName: 'Spain', crest: null },
+              playedGames: 3, form: null, won: 3, draw: 0, lost: 0,
+              points: 9, goalsFor: 8, goalsAgainst: 1, goalDifference: 7,
+            },
+          ],
+        },
+      ],
+    };
+    const all = normalizeStandings(groupStage);
+    expect(all.map((r) => r.teamName)).toEqual(['Germany', 'Spain']);
+  });
+});
+
+describe('football-data adapter — normalizeSeason', () => {
+  it('extracts the season from a standings payload (top-level season)', () => {
+    expect(normalizeSeason(standingsFixture)).toEqual({
+      sourceId: '2403',
+      startDate: '2025-08-08',
+      endDate: '2026-05-24',
+      yearLabel: '2025-26',
+    });
+  });
+
+  it('extracts the season from a matches payload (per-match season)', () => {
+    expect(normalizeSeason(matchesFixture)).toEqual({
+      sourceId: '2403',
+      startDate: '2025-08-08',
+      endDate: '2026-05-24',
+      yearLabel: '2025-26',
+    });
+  });
+
+  it('labels single-calendar-year seasons with one year', () => {
+    expect(
+      normalizeSeason({
+        season: { id: 99, startDate: '2026-03-01', endDate: '2026-11-30' },
+      }),
+    ).toEqual({
+      sourceId: '99',
+      startDate: '2026-03-01',
+      endDate: '2026-11-30',
+      yearLabel: '2026',
+    });
+  });
+
+  it('returns null when no season info exists', () => {
+    expect(normalizeSeason({ matches: [] })).toBeNull();
+    expect(normalizeSeason({})).toBeNull();
   });
 });
 

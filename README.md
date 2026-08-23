@@ -79,15 +79,23 @@ set `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium` when running e2e there.
   pages render before a football-data.org key exists.
 - **Edge Functions**: `supabase/functions/ingest-fixtures` (hourly) and
   `ingest-standings` (every 6h). Both share `_shared/` (adapter, pipeline, DB
-  store). Without `FOOTBALL_DATA_API_KEY` they log a graceful `skipped` row in
+  store, request shell). Seasons are **bootstrapped automatically** from the
+  upstream payload — no manual season seeding is needed for ingestion to work.
+  Without `FOOTBALL_DATA_API_KEY` they log a graceful `skipped` row in
   `ingestion_log` and exit cleanly.
-- **Cron** reads the project URL + anon key from Vault (`project_url`,
-  `anon_key`) — create those secrets per environment before applying `0006`.
+- **Auth**: the ingest endpoints require the `x-ingest-token` header in
+  addition to a valid JWT — the public anon key alone cannot trigger them.
+- **Cron** reads three Vault secrets (`project_url`, `anon_key`,
+  `ingest_token`) — create them per environment before applying `0006`/`0007`.
+  If they're missing, cron logs an `error` row in `ingestion_log` instead of
+  failing silently.
 
-Turn on real ingestion by setting the football-data.org key:
+Turn on real ingestion by setting the football-data.org key, and clear the
+synthetic sample matches so they don't sit alongside real fixtures:
 
 ```bash
 supabase secrets set FOOTBALL_DATA_API_KEY=your-key --project-ref <ref>
+# then run supabase/seed/cleanup_seed.sql against the project
 ```
 
 ## Deploy

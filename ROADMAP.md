@@ -26,9 +26,18 @@ with Cobalt; footer attribution.
 - [x] Pages + components (home, competitions, competition detail, team, match),
       standings table + accessible tab strip from Cobalt tokens, SEO/JSON-LD,
       sitemap — code complete, CSS/build config verified
+- [x] Post-merge review fixes (all 10 findings + 2 latent hazards): season
+      bootstrap from upstream payloads (real ingestion works with zero manual
+      seeding), working typecheck (TS 5), cron misconfig now logged to
+      ingestion_log, ingest endpoints require `x-ingest-token` (anon key alone
+      rejected — verified 401), local-day + live-spillover "today" window,
+      seed re-runs refresh kickoffs + `cleanup_seed.sql`, matchday/stage in
+      changed-row detection, Retry-After HTTP-date parsing, group-stage
+      standings kept, loader registered in astro.config (all platforms/paths),
+      single-source `Store` binding, shared `serveIngest` shell
 - [ ] **Full page e2e run + static build completion** — blocked on the Supabase
       host being on the environment's network egress allowlist (see Open items).
-      Unit tests, shell e2e, deployed functions, and cron are all verified.
+      Unit tests (39), shell e2e, deployed functions, and cron are all verified.
 - [ ] **Deploy `dist/` to Vercel** — blocked on the same egress (build reads
       Supabase at build time).
 

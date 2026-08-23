@@ -16,18 +16,23 @@ function unwrap<T>(data: T | null, error: { message: string } | null): T {
 
 export type MatchRow = Awaited<ReturnType<typeof todayFixtures>>[number];
 
-// Fixtures within the local "today" window (UTC day, padded to catch late KOs).
+// "Today's" fixtures: matches kicking off in the viewer's local calendar day
+// (local midnight boundaries — in the browser island this is the user's
+// timezone; during prerender it's the build host's), PLUS any match that is
+// currently live regardless of kickoff, so a game that started before
+// midnight never vanishes mid-match.
 export async function todayFixtures() {
   const start = new Date();
-  start.setUTCHours(0, 0, 0, 0);
+  start.setHours(0, 0, 0, 0);
   const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 1);
+  end.setDate(end.getDate() + 1);
 
   const { data, error } = await supabase
     .from('matches')
     .select(MATCH_SELECT)
-    .gte('kickoff_utc', start.toISOString())
-    .lt('kickoff_utc', end.toISOString())
+    .or(
+      `and(kickoff_utc.gte.${start.toISOString()},kickoff_utc.lt.${end.toISOString()}),status.eq.live`,
+    )
     .order('kickoff_utc', { ascending: true });
   return unwrap(data, error);
 }

@@ -4,15 +4,21 @@
 
 import {
   footballDataAdapter,
+  normalizeSeason,
   slugifyTeam,
 } from './adapters/football-data.ts';
-import type { NormalizedStandingRow } from './adapters/types.ts';
+import type {
+  NormalizedSeason,
+  NormalizedStandingRow,
+} from './adapters/types.ts';
 
 export interface CompetitionRef {
   fdCode: string;
   slug: string;
   canonicalId: string;
-  seasonId: string;
+  // Current season if one exists; ingestion bootstraps one from the upstream
+  // payload when null.
+  seasonId: string | null;
 }
 
 export interface MatchSnapshot {
@@ -21,6 +27,8 @@ export interface MatchSnapshot {
   homeScore: number | null;
   awayScore: number | null;
   kickoffUtc: string;
+  matchday: number | null;
+  stage: string | null;
 }
 
 export interface MatchUpsert extends MatchSnapshot {
@@ -29,8 +37,6 @@ export interface MatchUpsert extends MatchSnapshot {
   seasonId: string;
   homeTeamId: string;
   awayTeamId: string;
-  matchday: number | null;
-  stage: string | null;
 }
 
 export interface StandingUpsert {
@@ -56,13 +62,17 @@ export interface NewTeam {
   crestUrl: string | null;
 }
 
-// All DB access the pipeline needs, keyed for one competition/season.
+// All DB access the pipeline needs. A Store instance is bound to ONE source
+// (see createStore) — the single place source identity lives, so mapping
+// tables can never receive mixed-source rows in a run.
 export interface Store {
-  currentCompetitions(): Promise<CompetitionRef[]>;
-  teamMap(source: string): Promise<Map<string, string>>; // source_id → canonical team id
-  matchMap(source: string): Promise<Map<string, string>>; // source_id → canonical match id
+  readonly source: string;
+  mappedCompetitions(): Promise<CompetitionRef[]>;
+  ensureSeason(competitionId: string, season: NormalizedSeason): Promise<string>;
+  teamMap(): Promise<Map<string, string>>; // source_id → canonical team id
+  matchMap(): Promise<Map<string, string>>; // source_id → canonical match id
   existingMatches(ids: string[]): Promise<Map<string, MatchSnapshot>>;
-  createTeam(team: NewTeam, source: string, sourceId: string): Promise<string>;
+  createTeam(team: NewTeam, sourceId: string): Promise<string>;
   upsertMatch(match: MatchUpsert): Promise<string>;
   upsertStandings(rows: StandingUpsert[]): Promise<number>;
 }
@@ -82,16 +92,28 @@ export interface RunDeps {
   spacingMs?: number;
 }
 
-const SOURCE = footballDataAdapter.source;
-
 export function matchChanged(a: MatchSnapshot, b: MatchSnapshot): boolean {
   return (
     a.status !== b.status ||
     a.minute !== b.minute ||
     a.homeScore !== b.homeScore ||
     a.awayScore !== b.awayScore ||
+    a.matchday !== b.matchday ||
+    a.stage !== b.stage ||
     new Date(a.kickoffUtc).getTime() !== new Date(b.kickoffUtc).getTime()
   );
+}
+
+// Prefer the season named by the upstream payload (keeps dates fresh and
+// handles season rollover); fall back to the DB's current season.
+async function resolveSeason(
+  comp: CompetitionRef,
+  raw: unknown,
+  store: Store,
+): Promise<string | null> {
+  const season: NormalizedSeason | null = normalizeSeason(raw);
+  if (season) return store.ensureSeason(comp.canonicalId, season);
+  return comp.seasonId;
 }
 
 async function resolveTeam(
@@ -106,7 +128,6 @@ async function resolveTeam(
   if (existing) return existing;
   const id = await store.createTeam(
     { slug: slugifyTeam(name), name, shortName, country: null, crestUrl: crest },
-    SOURCE,
     sourceId,
   );
   teams.set(sourceId, id); // dedupe within this run
@@ -123,15 +144,17 @@ export async function ingestFixtures(deps: RunDeps): Promise<RunResult> {
   }
   const { store, fetchJson, apiKey, sleep } = deps;
   const spacing = deps.spacingMs ?? 6500;
-  const comps = await store.currentCompetitions();
-  const teams = await store.teamMap(SOURCE);
-  const matchIds = await store.matchMap(SOURCE);
+  const comps = await store.mappedCompetitions();
+  const teams = await store.teamMap();
+  const matchIds = await store.matchMap();
   let rows = 0;
 
   for (let i = 0; i < comps.length; i++) {
     const comp = comps[i];
     if (i > 0) await sleep(spacing);
     const raw = await fetchJson(footballDataAdapter.matchesUrl(comp.fdCode), apiKey);
+    const seasonId = await resolveSeason(comp, raw, store);
+    if (!seasonId) continue; // no season info anywhere — nothing to attach to
     const normalized = footballDataAdapter.normalizeMatches(raw);
 
     const known = normalized
@@ -146,6 +169,8 @@ export async function ingestFixtures(deps: RunDeps): Promise<RunResult> {
         homeScore: m.homeScore,
         awayScore: m.awayScore,
         kickoffUtc: m.kickoffUtc,
+        matchday: m.matchday,
+        stage: m.stage,
       };
       const existingId = matchIds.get(m.sourceId);
       if (existingId) {
@@ -163,11 +188,9 @@ export async function ingestFixtures(deps: RunDeps): Promise<RunResult> {
         ...next,
         sourceId: m.sourceId,
         competitionId: comp.canonicalId,
-        seasonId: comp.seasonId,
+        seasonId,
         homeTeamId,
         awayTeamId,
-        matchday: m.matchday,
-        stage: m.stage,
       });
       matchIds.set(m.sourceId, id);
       rows++;
@@ -186,14 +209,16 @@ export async function ingestStandings(deps: RunDeps): Promise<RunResult> {
   }
   const { store, fetchJson, apiKey, sleep } = deps;
   const spacing = deps.spacingMs ?? 6500;
-  const comps = await store.currentCompetitions();
-  const teams = await store.teamMap(SOURCE);
+  const comps = await store.mappedCompetitions();
+  const teams = await store.teamMap();
   let rows = 0;
 
   for (let i = 0; i < comps.length; i++) {
     const comp = comps[i];
     if (i > 0) await sleep(spacing);
     const raw = await fetchJson(footballDataAdapter.standingsUrl(comp.fdCode), apiKey);
+    const seasonId = await resolveSeason(comp, raw, store);
+    if (!seasonId) continue;
     const normalized: NormalizedStandingRow[] =
       footballDataAdapter.normalizeStandings(raw);
 
@@ -203,7 +228,7 @@ export async function ingestStandings(deps: RunDeps): Promise<RunResult> {
         r.teamSourceId, r.teamName, r.teamShortName, r.crestUrl, teams, store,
       );
       upserts.push({
-        seasonId: comp.seasonId,
+        seasonId,
         teamId,
         position: r.position,
         played: r.played,

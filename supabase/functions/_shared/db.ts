@@ -1,7 +1,10 @@
 // Supabase-backed Store implementation for the ingestion pipeline. Deno only:
 // uses the service-role key (injected as env) so writes bypass RLS.
+// A Store instance is bound to ONE source — the closure is the single place
+// source identity lives (see Store in pipeline.ts).
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import type { NormalizedSeason } from './adapters/types.ts';
 import type {
   CompetitionRef,
   MatchSnapshot,
@@ -22,47 +25,86 @@ export function serviceClient(): SupabaseClient {
 
 export function createStore(db: SupabaseClient, source: string): Store {
   return {
-    async currentCompetitions(): Promise<CompetitionRef[]> {
-      // Competitions with a mapping for this source AND a current season.
+    source,
+
+    // Every competition mapped for this source, with its current season id if
+    // one exists. Competitions without a season are still returned — the
+    // pipeline bootstraps a season from the upstream payload (ensureSeason).
+    async mappedCompetitions(): Promise<CompetitionRef[]> {
       const { data, error } = await db
         .from('competition_sources')
         .select(
-          'source_id, competition:competitions!inner ( id, slug, seasons!inner ( id, is_current ) )',
+          'source_id, competition:competitions!inner ( id, slug, seasons ( id, is_current ) )',
         )
-        .eq('source', source)
-        .eq('competition.seasons.is_current', true);
+        .eq('source', source);
       if (error) throw error;
 
       const refs: CompetitionRef[] = [];
       for (const row of data ?? []) {
         const comp = (row as any).competition;
-        const season = comp?.seasons?.[0];
-        if (comp && season) {
-          refs.push({
-            fdCode: (row as any).source_id,
-            slug: comp.slug,
-            canonicalId: comp.id,
-            seasonId: season.id,
-          });
-        }
+        if (!comp) continue;
+        const current = (comp.seasons ?? []).find((s: any) => s.is_current);
+        refs.push({
+          fdCode: (row as any).source_id,
+          slug: comp.slug,
+          canonicalId: comp.id,
+          seasonId: current?.id ?? null,
+        });
       }
       return refs;
     },
 
-    async teamMap(src: string): Promise<Map<string, string>> {
+    // Upsert the season named by the upstream payload and make it the only
+    // current season for the competition. Atomic ON CONFLICT upsert: the
+    // fixtures and standings crons both fire at minute 0, so two runs can
+    // bootstrap the same season concurrently — select-then-insert would race
+    // on the (competition_id, year_label) unique constraint.
+    async ensureSeason(
+      competitionId: string,
+      season: NormalizedSeason,
+    ): Promise<string> {
+      const { data, error } = await db
+        .from('seasons')
+        .upsert(
+          {
+            competition_id: competitionId,
+            year_label: season.yearLabel,
+            start_date: season.startDate,
+            end_date: season.endDate,
+            is_current: true,
+          },
+          { onConflict: 'competition_id,year_label' },
+        )
+        .select('id')
+        .single();
+      if (error) throw error;
+      const seasonId = data.id as string;
+
+      // Exactly one current season per competition (queries use maybeSingle).
+      const { error: clearError } = await db
+        .from('seasons')
+        .update({ is_current: false })
+        .eq('competition_id', competitionId)
+        .neq('id', seasonId)
+        .eq('is_current', true);
+      if (clearError) throw clearError;
+      return seasonId;
+    },
+
+    async teamMap(): Promise<Map<string, string>> {
       const { data, error } = await db
         .from('team_sources')
         .select('source_id, canonical_id')
-        .eq('source', src);
+        .eq('source', source);
       if (error) throw error;
       return new Map((data ?? []).map((r: any) => [r.source_id, r.canonical_id]));
     },
 
-    async matchMap(src: string): Promise<Map<string, string>> {
+    async matchMap(): Promise<Map<string, string>> {
       const { data, error } = await db
         .from('match_sources')
         .select('source_id, canonical_id')
-        .eq('source', src);
+        .eq('source', source);
       if (error) throw error;
       return new Map((data ?? []).map((r: any) => [r.source_id, r.canonical_id]));
     },
@@ -71,7 +113,7 @@ export function createStore(db: SupabaseClient, source: string): Store {
       if (ids.length === 0) return new Map();
       const { data, error } = await db
         .from('matches')
-        .select('id, status, minute, home_score, away_score, kickoff_utc')
+        .select('id, status, minute, home_score, away_score, kickoff_utc, matchday, stage')
         .in('id', ids);
       if (error) throw error;
       return new Map(
@@ -83,13 +125,15 @@ export function createStore(db: SupabaseClient, source: string): Store {
             homeScore: r.home_score,
             awayScore: r.away_score,
             kickoffUtc: r.kickoff_utc,
+            matchday: r.matchday,
+            stage: r.stage,
           },
         ]),
       );
     },
 
-    async createTeam(team: NewTeam, src: string, sourceId: string): Promise<string> {
-      // Slug may already exist (seeded) — upsert on slug, then map the source.
+    async createTeam(team: NewTeam, sourceId: string): Promise<string> {
+      // Slug may already exist (seeded) — reuse it, then map the source.
       const { data: existing } = await db
         .from('teams')
         .select('id')
@@ -114,7 +158,7 @@ export function createStore(db: SupabaseClient, source: string): Store {
       }
 
       const { error: mapError } = await db.from('team_sources').upsert(
-        { canonical_id: teamId, source: src, source_id: sourceId, source_name: team.name, confidence: 1.0 },
+        { canonical_id: teamId, source, source_id: sourceId, source_name: team.name, confidence: 1.0 },
         { onConflict: 'source,source_id' },
       );
       if (mapError) throw mapError;

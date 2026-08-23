@@ -22,6 +22,13 @@ export interface NormalizedMatch {
   awayCrest: string | null;
 }
 
+export interface NormalizedSeason {
+  sourceId: string;
+  startDate: string | null;
+  endDate: string | null;
+  yearLabel: string;
+}
+
 export interface NormalizedStandingRow {
   teamSourceId: string;
   teamName: string;

@@ -54,10 +54,12 @@ PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npm run test:e2e   # playwright
 npm run build                              # static build (needs Supabase egress)
 ```
 
-`npm run build` wires `scripts/css-stub-loader.mjs` via `NODE_OPTIONS` — Astro 7
-keeps node_modules external during prerender, so Node imports Cobalt directly and
-this loader stubs Cobalt's raw `.css` side-effect imports (class maps + the
-global `styles.css` bundle are unaffected). Don't remove it.
+`astro.config.mjs` registers `scripts/css-stub-hooks.mjs` as a Node module
+loader — Astro 7 keeps node_modules external during prerender, so Node imports
+Cobalt directly and the hooks stub Cobalt's raw `.css` side-effect imports
+(class maps + the global `styles.css` bundle are unaffected). This makes every
+build path work (`npm run build`, `npx astro build`, deploy presets, Windows).
+Don't remove the `register(...)` call.
 
 ## Secrets hygiene
 
@@ -65,7 +67,9 @@ global `styles.css` bundle are unaffected). Don't remove it.
   (football-data.org Terms §6.1). Functions skip gracefully without it.
 - `.npmrc` in the repo holds only the registry mapping; the GitHub Packages
   token stays in env (`GITHUB_TOKEN` locally, `NPM_TOKEN` on the deploy host).
-- Cron reads `project_url` + `anon_key` from Supabase Vault — never inline them.
+- Cron reads `project_url` + `anon_key` + `ingest_token` from Supabase Vault —
+  never inline them. Ingest endpoints reject callers without the
+  `x-ingest-token` header (the anon JWT alone is not enough).
 - `PUBLIC_SUPABASE_*` are public by design (RLS-guarded) and belong in the client
   bundle.
 

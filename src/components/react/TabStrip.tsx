@@ -7,15 +7,19 @@ export interface TabDef {
 
 // Cobalt has no Tabs component — accessible tab strip styled with Cobalt
 // tokens. Hydrated island; panel content arrives as named Astro slots
-// (slot="<tab id>" → props[<tab id>]).
+// (slot="<tab id>" → props[<tab id>]). Tab ids must not collide with the
+// reserved props ('tabs', 'label').
+interface TabStripProps {
+  tabs: TabDef[];
+  label?: string;
+  [slot: string]: ReactNode | TabDef[] | string | undefined;
+}
+
 export default function TabStrip({
   tabs,
   label = 'Sections',
   ...panels
-}: {
-  tabs: TabDef[];
-  label?: string;
-} & Record<string, ReactNode>) {
+}: TabStripProps) {
   const [active, setActive] = useState(tabs[0]?.id);
   const refs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
@@ -76,7 +80,7 @@ export default function TabStrip({
           aria-labelledby={`tab-${tab.id}`}
           hidden={active !== tab.id}
         >
-          {panels[tab.id]}
+          {panels[tab.id] as ReactNode}
         </div>
       ))}
     </div>

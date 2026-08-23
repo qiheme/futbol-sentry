@@ -697,7 +697,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_ingest_token: { Args: never; Returns: string }
+      invoke_ingest: { Args: { fn: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
